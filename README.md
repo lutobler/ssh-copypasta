@@ -15,15 +15,15 @@ instance.
 The scripts also logs all relevant events related to key changes.
 
 ## Usage
-| usage: `ssh-copypasta.py [-h] [-l LOGFILE] DIRECTORY AUTHORIZED_KEYS`
+usage: `ssh-copypasta.py [-h] [-l LOGFILE] DIRECTORY AUTHORIZED_KEYS`
 
-| positional arguments:  
-|   `DIRECTORY`        the directory to be monitored for changes
-|   `AUTHORIZED_KEYS`  the file for authorized SSH keys (usually `$HOME/.ssh/authorized_keys`)
+positional arguments:  
+* `DIRECTORY`        the directory to be monitored for changes
+* `AUTHORIZED_KEYS`  the file for authorized SSH keys (usually `$HOME/.ssh/authorized_keys`)
 
-| optional arguments:
-|   `-h, --help`       show this help message and exit
-|   `-l LOGFILE`       specify a logfile. Defaults to `$HOME/ssh-copypasta.log`
+optional arguments:
+* `-h, --help`       show this help message and exit
+* `-l LOGFILE`       specify a logfile. Defaults to `$HOME/ssh-copypasta.log`
 
 ## Dependencies
 * (Python 3)[https://www.python.org/]
