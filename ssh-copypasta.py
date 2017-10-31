@@ -7,14 +7,16 @@ import pyinotify
 import sys
 import os
 import re
+import datetime
 from typing import Tuple
 
 def log(msg: str) -> None:
     fd = open(log_file, 'a')
-    fd.write(msg + '\n')
+    time_str = '[' + datetime.datetime.now().isoformat() + '] '
+    fd.write(time_str + msg + '\n')
     fd.close()
 
-# Check if filen given by `keyfile_name` contains a public key and return it if it does.
+# Check if file given by `keyfile_name` contains a public key and return it if it does.
 def is_pub_key(keyfile_name: str) -> Tuple[bool, str]:
     pkey_regex = re.compile('^.*pub$')
     if not pkey_regex.match(keyfile_name):
