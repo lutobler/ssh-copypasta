@@ -26,5 +26,5 @@ optional arguments:
 * `-l LOGFILE`       specify a logfile. Defaults to `$HOME/ssh-copypasta.log`
 
 ## Dependencies
-* (Python 3)[https://www.python.org/]
-* (pyinotify)[https://pypi.python.org/pypi/pyinotify]
+* [Python 3](https://www.python.org/)
+* [pyinotify](https://pypi.python.org/pypi/pyinotify)
