@@ -11,36 +11,35 @@ import datetime
 from typing import Tuple
 
 def log(msg: str) -> None:
-    fd = open(log_file, 'a')
-    time_str = '[' + datetime.datetime.now().isoformat() + '] '
-    fd.write(time_str + msg + '\n')
-    fd.close()
+    with open(log_file, 'a') as fd:
+        time_str = '[' + datetime.datetime.now().isoformat() + '] '
+        fd.write(time_str + msg + '\n')
+
 
 # Check if file given by `keyfile_name` contains a public key and return it if it does.
 def is_pub_key(keyfile_name: str) -> Tuple[bool, str]:
     pkey_regex = re.compile('^.*pub$')
     if not pkey_regex.match(keyfile_name):
+        print("no match")
         return False, None
 
-    fd = open(keyfile_name, 'r')
-    content = fd.read()
-    fd.close()
+    with open(keyfile_name, 'r') as fd:
+        content = fd.read()
 
     ssh_key_regex = re.compile('^ssh-rsa .*')
     if not ssh_key_regex.match(content):
+        print("no match2")
         return False, None
 
     return True, content
 
 def build_authorized_keys_file() -> None:
-    fd = open(auth_keys, 'w+')
-    for f in os.listdir(watch_dir):
-        file_path = watch_dir + '/' + f
-        success, key = is_pub_key(file_path)
-        if success:
-            fd.write('\n' + key + '\n')
-
-    fd.close()
+    with open(auth_keys, 'w+') as fd:
+        for f in os.listdir(watch_dir):
+            file_path = watch_dir + '/' + f
+            success, key = is_pub_key(file_path)
+            if success:
+                fd.write('\n' + key + '\n')
 
 def add_key(path: str, name: str) -> None:
     file_name = path + '/' + name
@@ -90,8 +89,11 @@ if not os.path.exists(watch_dir):
 
 # create log file if it doesn't exist
 if not os.path.isfile(log_file):
-    fd = open(log_file, 'w+')
-    fd.close()
+    open(log_file, 'w').close()
+
+# create auth_keys file if it doesn't exist
+if not os.path.isfile(auth_keys):
+    open(auth_keys, 'w').close()
 
 # setup inotify and enter notification loop
 wm = pyinotify.WatchManager()
