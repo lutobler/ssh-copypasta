@@ -9,25 +9,23 @@ import os
 import re
 from typing import Tuple
 
-INOTIFY_MASK = pyinotify.IN_DELETE | pyinotify.IN_CREATE
-log_file = os.getenv('HOME') + '/ssh-copypasta.log'
-
 def log(msg: str) -> None:
     fd = open(log_file, 'a')
     fd.write(msg + '\n')
     fd.close()
 
-def is_pub_key(key_file: str) -> Tuple[bool, str]:
-    file_name = re.compile('^.*pub$')
-    if not file_name.match(key_file):
+# Check if filen given by `keyfile_name` contains a public key and return it if it does.
+def is_pub_key(keyfile_name: str) -> Tuple[bool, str]:
+    pkey_regex = re.compile('^.*pub$')
+    if not pkey_regex.match(keyfile_name):
         return False, None
 
-    fd = open(key_file, 'r')
+    fd = open(keyfile_name, 'r')
     content = fd.read()
     fd.close()
 
-    ssh_key = re.compile('^ssh-rsa .*')
-    if not ssh_key.match(content):
+    ssh_key_regex = re.compile('^ssh-rsa .*')
+    if not ssh_key_regex.match(content):
         return False, None
 
     return True, content
@@ -44,19 +42,20 @@ def build_authorized_keys_file() -> None:
 
 def add_key(path: str, name: str) -> None:
     file_name = path + '/' + name
-    s,_ = is_pub_key(file_name)
-    if not s:
+    b,_ = is_pub_key(file_name)
+    if not b:
         log('Key file has invalid format: ' + file_name)
         return
 
-    log('New public key: ' + name + ', regenerating authorized_keys')
+    log('New public key: `' + name + '`, regenerating authorized_keys')
     build_authorized_keys_file()
 
 def remove_key(path: str, name: str) -> None:
     file_name = path + '/' + name
-    log('Removed file: ' + file_name + ', regenerating authorized_keys')
+    log('Removed file: `' + file_name + '`, regenerating authorized_keys')
     build_authorized_keys_file()
 
+# Watcher class that executes appropriate functions whenever files are added/removed from the watch directory
 class OnCreateDeleteHandler(pyinotify.ProcessEvent):
     def process_IN_CREATE(self, event: pyinotify.Event) -> None:
         add_key(event.path, event.name)
@@ -64,12 +63,15 @@ class OnCreateDeleteHandler(pyinotify.ProcessEvent):
     def process_IN_DELETE(self, event: pyinotify.Event) -> None:
         remove_key(event.path, event.name)
 
+# default log file is in home directory
+log_file = os.getenv('HOME') + '/ssh-copypasta.log'
+
 # argument parsing setup
 parser = argparse.ArgumentParser()
 parser.add_argument('DIRECTORY', metavar='DIRECTORY',
         help='the directory to be monitored for changes')
 parser.add_argument('AUTHORIZED_KEYS', metavar='AUTHORIZED_KEYS',
-        help='the SSH key file (usuall $HOME/.ssh/authorized_keys)')
+        help='the file for authorized SSH keys (usually $HOME/.ssh/authorized_keys)')
 parser.add_argument('-l', metavar='LOGFILE',
         help='specify a logfile. Defaults to $HOME/ssh-copypasta.log')
 
@@ -84,15 +86,16 @@ if not os.path.exists(watch_dir):
     sys.stderr.write('specified watch directory does not exist\n')
     sys.exit(1)
 
-# create log file if it doesnt exist
+# create log file if it doesn't exist
 if not os.path.isfile(log_file):
     fd = open(log_file, 'w+')
     fd.close()
 
-# setup inotify and enter loop
+# setup inotify and enter notification loop
 wm = pyinotify.WatchManager()
 event_handler = OnCreateDeleteHandler()
 notifier = pyinotify.Notifier(wm, default_proc_fun=event_handler)
+INOTIFY_MASK = pyinotify.IN_DELETE | pyinotify.IN_CREATE
 wm.add_watch(watch_dir, INOTIFY_MASK, rec=True, auto_add=True)
 notifier.loop()
 
