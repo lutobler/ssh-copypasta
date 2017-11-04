@@ -10,17 +10,11 @@ import re
 import datetime
 from typing import Tuple
 
-def log(msg: str) -> None:
-    with open(log_file, 'a') as fd:
-        time_str = '[' + datetime.datetime.now().isoformat() + '] '
-        fd.write(time_str + msg + '\n')
-
 
 # Check if file given by `keyfile_name` contains a public key and return it if it does.
 def is_pub_key(keyfile_name: str) -> Tuple[bool, str]:
-    pkey_regex = re.compile('^.*pub$')
+    pkey_regex = re.compile('^.*\.pub$')
     if not pkey_regex.match(keyfile_name):
-        print("no match")
         return False, None
 
     with open(keyfile_name, 'r') as fd:
@@ -28,16 +22,23 @@ def is_pub_key(keyfile_name: str) -> Tuple[bool, str]:
 
     ssh_key_regex = re.compile('^ssh-rsa .*')
     if not ssh_key_regex.match(content):
-        print("no match2")
         return False, None
 
     return True, content
 
 # Watcher class that executes appropriate functions whenever files are added/removed from the watch directory
 class OnCreateDeleteHandler(pyinotify.ProcessEvent):
-    def __init__(self, auth_keys, watch_dir):
+    def __init__(self, auth_keys, watch_dir, log_file=None):
         self.auth_keys = auth_keys
         self.watch_dir = watch_dir
+        self.log_file = log_file
+
+    def log(self, msg: str) -> None:
+        if not self.log_file:
+            return
+        with open(self.log_file, 'a') as fd:
+            time_str = '[' + datetime.datetime.now().isoformat() + '] '
+            fd.write(time_str + msg + '\n')
 
     def process_IN_CREATE(self, event: pyinotify.Event) -> None:
         self.add_key(event.path, event.name)
@@ -57,16 +58,25 @@ class OnCreateDeleteHandler(pyinotify.ProcessEvent):
         file_name = path + '/' + name
         b,_ = is_pub_key(file_name)
         if not b:
-            log('Key file has invalid format: ' + file_name)
+            self.log('Key file has invalid format: ' + file_name)
             return
 
-        log('New public key: `' + name + '`, regenerating authorized_keys')
+        self.log('New public key: `' + name + '`, regenerating authorized_keys')
         self.build_authorized_keys_file()
 
     def remove_key(self, path: str, name: str) -> None:
         file_name = path + '/' + name
-        log('Removed file: `' + file_name + '`, regenerating authorized_keys')
+        self.log('Removed file: `' + file_name + '`, regenerating authorized_keys')
         self.build_authorized_keys_file()
+
+    # setup inotify and enter notification loop
+    def setup_watcher(auth_keys, watch_dir, log_file):
+        wm = pyinotify.WatchManager()
+        event_handler = OnCreateDeleteHandler(auth_keys, watch_dir, log_file)
+        notifier = pyinotify.ThreadedNotifier(wm, default_proc_fun=event_handler)
+        INOTIFY_MASK = pyinotify.IN_DELETE | pyinotify.IN_CREATE
+        wm.add_watch(watch_dir, INOTIFY_MASK, rec=True, auto_add=True)
+        return notifier
 
 
 if __name__ == '__main__':
@@ -101,11 +111,6 @@ if __name__ == '__main__':
     if not os.path.isfile(auth_keys):
         open(auth_keys, 'w').close()
 
-    # setup inotify and enter notification loop
-    wm = pyinotify.WatchManager()
-    event_handler = OnCreateDeleteHandler(auth_keys, watch_dir)
-    notifier = pyinotify.Notifier(wm, default_proc_fun=event_handler)
-    INOTIFY_MASK = pyinotify.IN_DELETE | pyinotify.IN_CREATE
-    wm.add_watch(watch_dir, INOTIFY_MASK, rec=True, auto_add=True)
-    notifier.loop()
+    notifier = setup_watcher(auth_keys, watch_dir, log_file)
+    notifier.start()
 
