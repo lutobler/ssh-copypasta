@@ -18,7 +18,7 @@ def log(msg: str) -> None:
 
 # Check if file given by `keyfile_name` contains a public key and return it if it does.
 def is_pub_key(keyfile_name: str) -> Tuple[bool, str]:
-    pkey_regex = re.compile('^.*\.pub$')
+    pkey_regex = re.compile('^.*pub$')
     if not pkey_regex.match(keyfile_name):
         print("no match")
         return False, None
@@ -33,36 +33,40 @@ def is_pub_key(keyfile_name: str) -> Tuple[bool, str]:
 
     return True, content
 
-def build_authorized_keys_file() -> None:
-    with open(auth_keys, 'w+') as fd:
-        for f in os.listdir(watch_dir):
-            file_path = watch_dir + '/' + f
-            success, key = is_pub_key(file_path)
-            if success:
-                fd.write('\n' + key + '\n')
-
-def add_key(path: str, name: str) -> None:
-    file_name = path + '/' + name
-    b,_ = is_pub_key(file_name)
-    if not b:
-        log('Key file has invalid format: ' + file_name)
-        return
-
-    log('New public key: `' + name + '`, regenerating authorized_keys')
-    build_authorized_keys_file()
-
-def remove_key(path: str, name: str) -> None:
-    file_name = path + '/' + name
-    log('Removed file: `' + file_name + '`, regenerating authorized_keys')
-    build_authorized_keys_file()
-
 # Watcher class that executes appropriate functions whenever files are added/removed from the watch directory
 class OnCreateDeleteHandler(pyinotify.ProcessEvent):
+    def __init__(self, auth_keys, watch_dir):
+        self.auth_keys = auth_keys
+        self.watch_dir = watch_dir
+
     def process_IN_CREATE(self, event: pyinotify.Event) -> None:
-        add_key(event.path, event.name)
+        self.add_key(event.path, event.name)
 
     def process_IN_DELETE(self, event: pyinotify.Event) -> None:
-        remove_key(event.path, event.name)
+        self.remove_key(event.path, event.name)
+
+    def build_authorized_keys_file(self) -> None:
+        with open(self.auth_keys, 'w+') as fd:
+            for f in os.listdir(self.watch_dir):
+                file_path = self.watch_dir + '/' + f
+                success, key = is_pub_key(file_path)
+                if success:
+                    fd.write('\n' + key + '\n')
+
+    def add_key(self, path: str, name: str) -> None:
+        file_name = path + '/' + name
+        b,_ = is_pub_key(file_name)
+        if not b:
+            log('Key file has invalid format: ' + file_name)
+            return
+
+        log('New public key: `' + name + '`, regenerating authorized_keys')
+        self.build_authorized_keys_file()
+
+    def remove_key(self, path: str, name: str) -> None:
+        file_name = path + '/' + name
+        log('Removed file: `' + file_name + '`, regenerating authorized_keys')
+        self.build_authorized_keys_file()
 
 
 if __name__ == '__main__':
@@ -99,7 +103,7 @@ if __name__ == '__main__':
 
     # setup inotify and enter notification loop
     wm = pyinotify.WatchManager()
-    event_handler = OnCreateDeleteHandler()
+    event_handler = OnCreateDeleteHandler(auth_keys, watch_dir)
     notifier = pyinotify.Notifier(wm, default_proc_fun=event_handler)
     INOTIFY_MASK = pyinotify.IN_DELETE | pyinotify.IN_CREATE
     wm.add_watch(watch_dir, INOTIFY_MASK, rec=True, auto_add=True)
