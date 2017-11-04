@@ -18,7 +18,7 @@ def log(msg: str) -> None:
 
 # Check if file given by `keyfile_name` contains a public key and return it if it does.
 def is_pub_key(keyfile_name: str) -> Tuple[bool, str]:
-    pkey_regex = re.compile('^.*pub$')
+    pkey_regex = re.compile('^.*\.pub$')
     if not pkey_regex.match(keyfile_name):
         print("no match")
         return False, None
