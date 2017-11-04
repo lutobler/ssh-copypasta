@@ -64,42 +64,44 @@ class OnCreateDeleteHandler(pyinotify.ProcessEvent):
     def process_IN_DELETE(self, event: pyinotify.Event) -> None:
         remove_key(event.path, event.name)
 
-# default log file is in home directory
-log_file = os.getenv('HOME') + '/ssh-copypasta.log'
 
-# argument parsing setup
-parser = argparse.ArgumentParser()
-parser.add_argument('DIRECTORY', metavar='DIRECTORY',
-        help='the directory to be monitored for changes')
-parser.add_argument('AUTHORIZED_KEYS', metavar='AUTHORIZED_KEYS',
-        help='the file for authorized SSH keys (usually $HOME/.ssh/authorized_keys)')
-parser.add_argument('-l', metavar='LOGFILE',
-        help='specify a logfile. Defaults to $HOME/ssh-copypasta.log')
+if __name__ == '__main__':
+    # default log file is in home directory
+    log_file = os.getenv('HOME') + '/ssh-copypasta.log'
 
-# parse and check arguments
-args = parser.parse_args()
-watch_dir = args.DIRECTORY
-auth_keys = args.AUTHORIZED_KEYS
-log_file = args.l
+    # argument parsing setup
+    parser = argparse.ArgumentParser()
+    parser.add_argument('DIRECTORY', metavar='DIRECTORY',
+            help='the directory to be monitored for changes')
+    parser.add_argument('AUTHORIZED_KEYS', metavar='AUTHORIZED_KEYS',
+            help='the file for authorized SSH keys (usually $HOME/.ssh/authorized_keys)')
+    parser.add_argument('-l', metavar='LOGFILE',
+            help='specify a logfile. Defaults to $HOME/ssh-copypasta.log')
 
-# check if watch directory exists
-if not os.path.exists(watch_dir):
-    sys.stderr.write('specified watch directory does not exist\n')
-    sys.exit(1)
+    # parse and check arguments
+    args = parser.parse_args()
+    watch_dir = args.DIRECTORY
+    auth_keys = args.AUTHORIZED_KEYS
+    log_file = args.l
 
-# create log file if it doesn't exist
-if not os.path.isfile(log_file):
-    open(log_file, 'w').close()
+    # check if watch directory exists
+    if not os.path.exists(watch_dir):
+        sys.stderr.write('specified watch directory does not exist\n')
+        sys.exit(1)
 
-# create auth_keys file if it doesn't exist
-if not os.path.isfile(auth_keys):
-    open(auth_keys, 'w').close()
+    # create log file if it doesn't exist
+    if not os.path.isfile(log_file):
+        open(log_file, 'w').close()
 
-# setup inotify and enter notification loop
-wm = pyinotify.WatchManager()
-event_handler = OnCreateDeleteHandler()
-notifier = pyinotify.Notifier(wm, default_proc_fun=event_handler)
-INOTIFY_MASK = pyinotify.IN_DELETE | pyinotify.IN_CREATE
-wm.add_watch(watch_dir, INOTIFY_MASK, rec=True, auto_add=True)
-notifier.loop()
+    # create auth_keys file if it doesn't exist
+    if not os.path.isfile(auth_keys):
+        open(auth_keys, 'w').close()
+
+    # setup inotify and enter notification loop
+    wm = pyinotify.WatchManager()
+    event_handler = OnCreateDeleteHandler()
+    notifier = pyinotify.Notifier(wm, default_proc_fun=event_handler)
+    INOTIFY_MASK = pyinotify.IN_DELETE | pyinotify.IN_CREATE
+    wm.add_watch(watch_dir, INOTIFY_MASK, rec=True, auto_add=True)
+    notifier.loop()
 
