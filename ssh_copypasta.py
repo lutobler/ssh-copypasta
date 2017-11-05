@@ -11,8 +11,11 @@ import datetime
 from typing import Tuple
 
 
-# Check if file given by `keyfile_name` contains a public key and return it if it does.
 def is_pub_key(keyfile_name: str) -> Tuple[bool, str]:
+    """
+    Check if a file is a valid key file and perform rudimentary sanity-check.
+    If it is valid, also return the files' content.
+    """
     pkey_regex = re.compile('^.*\.pub$')
     if not pkey_regex.match(keyfile_name):
         return False, None
@@ -26,14 +29,20 @@ def is_pub_key(keyfile_name: str) -> Tuple[bool, str]:
 
     return True, content
 
-# Watcher class that executes appropriate functions whenever files are added/removed from the watch directory
+
 class OnCreateDeleteHandler(pyinotify.ProcessEvent):
-    def __init__(self, auth_keys, watch_dir, log_file=None):
+    """
+    Implementation of pyinotify.ProcessEvent that handles file being
+    added/removed from the watch directory.
+    """
+
+    def __init__(self, auth_keys: str, watch_dir: str, log_file: str) -> None:
         self.auth_keys = auth_keys
         self.watch_dir = watch_dir
         self.log_file = log_file
 
     def log(self, msg: str) -> None:
+        """Log a message to the log file, with an added timestamp."""
         if not self.log_file:
             return
         with open(self.log_file, 'a') as fd:
@@ -41,12 +50,15 @@ class OnCreateDeleteHandler(pyinotify.ProcessEvent):
             fd.write(time_str + msg + '\n')
 
     def process_IN_CREATE(self, event: pyinotify.Event) -> None:
+        """Event handler for created files."""
         self.add_key(event.path, event.name)
 
     def process_IN_DELETE(self, event: pyinotify.Event) -> None:
+        """Event handler for deleted files."""
         self.remove_key(event.path, event.name)
 
     def build_authorized_keys_file(self) -> None:
+        """Build the authorized_keys file from scratch and write it out."""
         with open(self.auth_keys, 'w+') as fd:
             for f in os.listdir(self.watch_dir):
                 file_path = self.watch_dir + '/' + f
@@ -55,25 +67,32 @@ class OnCreateDeleteHandler(pyinotify.ProcessEvent):
                     fd.write('\n' + key + '\n')
 
     def add_key(self, path: str, name: str) -> None:
+        """Update authorized_keys file when a key is added."""
         file_name = path + '/' + name
         b,_ = is_pub_key(file_name)
         if not b:
             self.log('Key file has invalid format: ' + file_name)
             return
 
-        self.log('New public key: `' + name + '`, regenerating authorized_keys')
+        self.log('New public key: `' + name
+                 + '`, regenerating authorized_keys')
         self.build_authorized_keys_file()
 
     def remove_key(self, path: str, name: str) -> None:
+        """Update authorized_keys file when a key is deleted."""
         file_name = path + '/' + name
-        self.log('Removed file: `' + file_name + '`, regenerating authorized_keys')
+        self.log('Removed file: `' + file_name
+                 + '`, regenerating authorized_keys')
         self.build_authorized_keys_file()
 
-    # setup inotify and enter notification loop
-    def setup_watcher(auth_keys, watch_dir, log_file):
+    def setup_watcher(auth_keys: str, watch_dir: str,
+                      log_file: str) -> pyinotify.ThreadedNotifier:
+        """Setup pyinotify and return the notifier object"""
+
         wm = pyinotify.WatchManager()
         event_handler = OnCreateDeleteHandler(auth_keys, watch_dir, log_file)
-        notifier = pyinotify.ThreadedNotifier(wm, default_proc_fun=event_handler)
+        notifier = pyinotify.ThreadedNotifier(wm,
+                                              default_proc_fun=event_handler)
         INOTIFY_MASK = pyinotify.IN_DELETE | pyinotify.IN_CREATE
         wm.add_watch(watch_dir, INOTIFY_MASK, rec=True, auto_add=True)
         return notifier
@@ -85,12 +104,22 @@ if __name__ == '__main__':
 
     # argument parsing setup
     parser = argparse.ArgumentParser()
-    parser.add_argument('DIRECTORY', metavar='DIRECTORY',
-            help='the directory to be monitored for changes')
-    parser.add_argument('AUTHORIZED_KEYS', metavar='AUTHORIZED_KEYS',
-            help='the file for authorized SSH keys (usually $HOME/.ssh/authorized_keys)')
-    parser.add_argument('-l', metavar='LOGFILE',
-            help='specify a logfile. Defaults to $HOME/ssh-copypasta.log')
+    parser.add_argument(
+        'DIRECTORY',
+        metavar='DIRECTORY',
+        help='the directory to be monitored for changes'
+    )
+    parser.add_argument(
+        'AUTHORIZED_KEYS',
+        metavar='AUTHORIZED_KEYS',
+        help='the file for authorized SSH keys'
+             + ' (usually $HOME/.ssh/authorized_keys)'
+    )
+    parser.add_argument(
+        '-l',
+        metavar='LOGFILE',
+        help='specify a logfile. default: $HOME/ssh-copypasta.log'
+    )
 
     # parse and check arguments
     args = parser.parse_args()
