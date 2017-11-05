@@ -1,0 +1,6 @@
+[Unit]
+Description=Daemon that manages authorized SSH keys
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/env python3 %h/authorized_keys/ssh_copypasta.py -l %h/ssh_copypasta.log %h/authorized_keys %h/.ssh/authorized_keys
