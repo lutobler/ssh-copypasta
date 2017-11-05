@@ -85,17 +85,18 @@ class OnCreateDeleteHandler(pyinotify.ProcessEvent):
                  + '`, regenerating authorized_keys')
         self.build_authorized_keys_file()
 
-    def setup_watcher(auth_keys: str, watch_dir: str,
-                      log_file: str) -> pyinotify.ThreadedNotifier:
-        """Setup pyinotify and return the notifier object"""
 
-        wm = pyinotify.WatchManager()
-        event_handler = OnCreateDeleteHandler(auth_keys, watch_dir, log_file)
-        notifier = pyinotify.ThreadedNotifier(wm,
-                                              default_proc_fun=event_handler)
-        INOTIFY_MASK = pyinotify.IN_DELETE | pyinotify.IN_CREATE
-        wm.add_watch(watch_dir, INOTIFY_MASK, rec=True, auto_add=True)
-        return notifier
+def build_notifier(auth_keys: str, watch_dir: str,
+                  log_file: str) -> pyinotify.ThreadedNotifier:
+    """Setup pyinotify and return a notifier object"""
+
+    wm = pyinotify.WatchManager()
+    event_handler = OnCreateDeleteHandler(auth_keys, watch_dir, log_file)
+    notifier = pyinotify.ThreadedNotifier(wm,
+                                          default_proc_fun=event_handler)
+    INOTIFY_MASK = pyinotify.IN_DELETE | pyinotify.IN_CREATE
+    wm.add_watch(watch_dir, INOTIFY_MASK, rec=True, auto_add=True)
+    return notifier
 
 
 if __name__ == '__main__':
@@ -140,6 +141,6 @@ if __name__ == '__main__':
     if not os.path.isfile(auth_keys):
         open(auth_keys, 'w').close()
 
-    notifier = setup_watcher(auth_keys, watch_dir, log_file)
+    notifier = build_notifier(auth_keys, watch_dir, log_file)
     notifier.start()
 

@@ -33,7 +33,7 @@ class TestKeyUpdating(unittest.TestCase):
         with open(self.auth_keys, 'w') as f:
             f.write("")
 
-        self.notifier = OnCreateDeleteHandler.setup_watcher(self.auth_keys, 
+        self.notifier = build_notifier(self.auth_keys,
                 self.watch_dir, self.log_file)
         self.notifier.start()
 
@@ -43,22 +43,21 @@ class TestKeyUpdating(unittest.TestCase):
         files = os.listdir(TestKeyUpdating.KEYS_DIR)
         for f in files:
             shutil.copy(TestKeyUpdating.KEYS_DIR + f, self.watch_dir)
-            
-            
+
         # FIXME: os.sync() might not be enough here. We definitely need a delay
         # or a barrier before doing the asserts. I'm not sure wheter os.sync()
         # is the barrier or the delay in this case. Maybe it's both.
         os.sync()
         self.notifier.stop()
 
-        # auth_keys file should contain keys surrounded by an empty line 
+        # auth_keys file should contain keys surrounded by an empty line
         self.assertEqual(len(files) * 3, sum(1 for line in  open(self.auth_keys)))
 
         # Logfile should contain an entry for every key added
         self.assertEqual(len(files) + 1, sum(1 for line in open(self.log_file)))
 
         # Threads can only be started once, so need to get new notifier.
-        self.notifier = OnCreateDeleteHandler.setup_watcher(self.auth_keys, 
+        self.notifier = build_notifier(self.auth_keys,
                 self.watch_dir, self.log_file)
         self.notifier.start()
         for f in files:
