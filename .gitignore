@@ -2,3 +2,4 @@
 __pycache__/
 test/testkeys/auth_keys
 test/testkeys/log
+.mypy_cache
