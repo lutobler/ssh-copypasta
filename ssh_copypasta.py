@@ -1,6 +1,3 @@
-
-# depends on: pyinotify
-
 import argparse
 import pyinotify
 import sys
