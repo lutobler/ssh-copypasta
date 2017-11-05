@@ -1,1 +1,5 @@
 *.swp
+__pycache__/
+test/testkeys/auth_keys
+test/testkeys/log
+test/testkeys/watch_dir/
